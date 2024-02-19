@@ -1,0 +1,10 @@
+Source: wal-g
+Section: utils
+Priority: optional
+Maintainer: Denis Shipilov <shipilovds@gmail.com>
+Build-Depends: debhelper (>= 12)
+
+Package: wal-g
+Architecture: amd64
+Description: WAL-G is an archival restoration tool for PostgreSQL, MySQL/MariaDB, and MS SQL Server (beta for MongoDB and Redis).
+Version: REPLACE_ME

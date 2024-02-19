@@ -1,44 +1,61 @@
-# Build exporter
-FROM python:3.9.16-bullseye AS exporter-builder
+ARG BASE_DIST
 
-WORKDIR /usr/src/
-
-# Install exporter requirements and build
-COPY requirements.txt /usr/src/
+##############################################################################
+#=======================| Wal-g exporter Builder Image |=====================#
+##############################################################################
+FROM python:$BASE_DIST AS exporter-builder
+ARG DEBIAN_FRONTEND=noninteractive
+COPY . /exporter
+WORKDIR /exporter
 RUN pip3 install -r requirements.txt
-ADD exporter.py /usr/src/
-RUN pyinstaller --name exporter \
-    --onefile exporter.py && \
-    mv dist/exporter wal-g-prometheus-exporter
+RUN pyinstaller --name wal-g-exporter --onefile src/exporter.py
 
-# Install wget and download wal-g
-ARG TARGETARCH
-RUN apt-get update && apt-get install -y wget && rm -rf /var/lib/apt/lists/* && \
-    if [ "${TARGETARCH}" = "arm64" ]; then \
-    export WALG_ARCH="aarch64"; \
-    else \
-    export WALG_ARCH="${TARGETARCH}"; \
-    fi && \
-    wget -O /wal-g-pg-ubuntu-20.04.tar.gz https://github.com/wal-g/wal-g/releases/download/v2.0.1/wal-g-pg-ubuntu-20.04-${WALG_ARCH}.tar.gz
+##############################################################################
+#===========================| Wal-g Builder Image |==========================#
+##############################################################################
+FROM golang:$BASE_DIST AS walg-builder
+ARG DEBIAN_FRONTEND=noninteractive
+RUN apt update 
+RUN apt install -y \
+    ca-certificates \
+    cmake \
+    curl \
+    git \
+    gzip \
+    libbrotli-dev \
+    libsodium-dev \
+    make
+ARG WALG_RELEASE
+RUN git clone --depth 1 --branch $WALG_RELEASE https://github.com/wal-g/wal-g.git 
+WORKDIR /go/wal-g
+RUN go get ./...
+RUN make deps
+RUN make pg_install
 
-# Build final image
-FROM debian:11.6-slim
-COPY --from=exporter-builder /usr/src/wal-g-prometheus-exporter /usr/bin/
-COPY --from=exporter-builder /wal-g-pg-ubuntu-20.04.tar.gz /usr/bin/
+##############################################################################
+#==============================| Final Image |===============================#
+##############################################################################
+FROM debian:$BASE_DIST as final
+ENTRYPOINT ["/usr/bin/wal-g-exporter"]
+COPY --chmod=755 --from=walg-builder /wal-g /usr/bin/
+COPY --chmod=755 --from=exporter-builder /exporter/dist/wal-g-exporter /usr/bin/
+COPY Dockerfile /
+COPY README.md /
 
-RUN apt-get update && \
-    apt-get install -y ca-certificates daemontools && \
-    apt-get upgrade -y -q && \
-    apt-get dist-upgrade -y -q && \
-    apt-get -y -q autoclean && \
-    apt-get -y -q autoremove
-
-RUN cd /usr/bin/ && \
-    tar -zxvf wal-g-pg-ubuntu-20.04.tar.gz && \
-    rm wal-g-pg-ubuntu-20.04.tar.gz && \
-    (mv wal-g-pg-ubuntu20.04-* wal-g || mv wal-g-pg-ubuntu-20.04-* wal-g)
-
-COPY scripts/entrypoint.sh /usr/bin/
-RUN chmod +x /usr/bin/entrypoint.sh
-
-ENTRYPOINT ["/usr/bin/entrypoint.sh"]
+##############################################################################
+#===========================| Deb Builder Image |============================#
+##############################################################################
+FROM ghcr.io/shipilovds/deb-builder as deb
+WORKDIR /build
+COPY --chmod=755 --from=walg-builder /wal-g deb/wal-g/
+COPY --chmod=755 --from=exporter-builder /exporter/dist/wal-g-exporter deb/wal-g-exporter/
+COPY deb deb
+ARG WALG_RELEASE
+ARG WALG_EXPORTER_RELEASE
+WORKDIR /build/deb/wal-g
+RUN sed -i -e "s|^Version:.*|Version: $WALG_RELEASE|g" -e "s|^Version: v|Version: |g" debian/control
+RUN dpkg-buildpackage -b
+WORKDIR /build/deb/wal-g-exporter
+RUN sed -i "s|^Version:.*|Version: $WALG_EXPORTER_RELEASE|g" debian/control
+RUN dpkg-buildpackage -b
+WORKDIR /build/deb

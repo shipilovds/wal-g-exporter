@@ -1,0 +1,32 @@
+version: '2'
+services:
+  wal-g-exporter:
+    build:
+      context: .
+      target: final
+      args:
+        BASE_DIST: ${BASE_DIST:-bookworm}
+        WALG_RELEASE: ${WALG_RELEASE:-v2.0.1}
+      labels:
+        - "org.opencontainers.image.source=https://github.com/shipilovds/wal-g-exporter"
+        - "org.opencontainers.image.description=Container with `wal-g` cli and WAL-G Prometheus Exporter"
+        - "org.opencontainers.image.authors=@shipilovds (shipilovds@gmail.com)"
+        - "org.opencontainers.image.url=https://github.com/shipilovds/wal-g-exporter"
+        - "org.opencontainers.image.documentation=https://github.com/shipilovds/wal-g-exporter/blob/master/README.md"
+        - "org.opencontainers.image.revision=${REVISION:-1.0}"
+    image: ${WALG_EXPORTER_IMAGE:-wal-g-exporter}
+  deb-builder:
+    build:
+      context: deb
+      args:
+        BASE_DIST: bookworm
+    image: ghcr.io/shipilovds/deb-builder
+  deb:
+    build:
+      context: .
+      target: deb
+      args:
+        BASE_DIST: ${BASE_DIST:-bookworm}
+        WALG_RELEASE: ${WALG_RELEASE:-v2.0.1}
+        WALG_EXPORTER_RELEASE: ${WALG_EXPORTER_RELEASE:-1.0.0}
+    image: deb

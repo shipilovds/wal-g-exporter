@@ -1,0 +1,10 @@
+Source: wal-g-exporter
+Section: utils
+Priority: optional
+Maintainer: Denis Shipilov <shipilovds@gmail.com>
+Build-Depends: debhelper (>= 12)
+
+Package: wal-g-exporter
+Architecture: amd64
+Description: wal-g-exporter is a Prometheus exporter for gathering WAL-G backup metrics for the PostgreSQL database.
+Version: REPLACE_ME
