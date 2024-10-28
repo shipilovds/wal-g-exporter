@@ -1,14 +1,14 @@
 .PHONY: all docker docker-build docker-tag docker-push deb deb-docker deb-clean clean
 .EXPORT_ALL_VARIABLES:
 
-REVISION              ?= 1.0
+REVISION              ?= 1.1
 REGISTRY_USER         ?= shipilovds
 REGISTRY_PASSWORD     ?= CHANGE_ME
 REGISTRY_ADDR         ?= ghcr.io/$(REGISTRY_USER)
 BASE_DIST             ?= bookworm
 WALG_RELEASE          ?= v2.0.1
 WALG_RELEASE_FIXED    := $(shell echo $(WALG_RELEASE) | sed "s/v//")
-WALG_EXPORTER_RELEASE ?= 1.0.0
+WALG_EXPORTER_RELEASE ?= 1.1.0
 WALG_EXPORTER_IMAGE   ?= $(REGISTRY_ADDR)/wal-g-exporter
 
 all:
