@@ -7,7 +7,8 @@ import signal
 import subprocess
 import json
 import datetime
-
+import argparse
+from decouple import Config, RepositoryEnv
 from prometheus_client import start_http_server, CollectorRegistry, Gauge, write_to_textfile
 from psycopg2.extras import DictCursor
 
@@ -27,10 +28,27 @@ class MyLogger:
         self.logger.addHandler(stderr_handler)
 
 
+class Decouwrapper():
+    def __init__(self):
+        self.__config = {}
+        self.__read_config()
+
+    def __read_envfile(self):
+        parser = argparse.ArgumentParser(description='WAL-G exporter options')
+        parser.add_argument('--envfile', type=str, help='Path to config.env file', default='./config.env')
+        return parser.parse_args().envfile
+
+    def __read_config(self):
+        self.__config = Config(RepositoryEnv(self.__read_envfile()))
+
+    def __call__(self, *args, **kwargs):
+        return self.__config.get(*args, **kwargs)
+
+
 terminate = False
 
 
-def signal_handler(sig, frame):
+def sigterm_handler(sig, frame):
     global terminate
     log.info('SIGTERM received, preparing to shut down...')
     terminate = True
@@ -326,37 +344,30 @@ if __name__ == '__main__':
     log.info(f"My PID is: {os.getpid()}")
 
     # Register the signal handler for SIGTERM
-    signal.signal(signal.SIGTERM, signal_handler)
+    signal.signal(signal.SIGTERM, sigterm_handler)
 
     log.info("Reading environment configuration")
+    config = Decouwrapper()
 
     # Read configuration from ENV
-    pg_host = os.getenv('PGHOST', 'localhost')
-    pg_port = os.getenv('PGPORT', '5432')
-    pg_user = os.getenv('PGUSER', 'postgres')
-    pg_database = os.getenv('POSTGRES_DB', 'postgres')
-    pg_password = os.getenv('POSTGRES_PASSWORD')
-    pg_ssl_mode = os.getenv('PGSSLMODE', 'allow')
-    wal_g_scrape_interval = int(os.getenv('WAL_G_SCRAPE_INTERVAL', 60))
-    service_type = os.getenv('EXPORTER_SERVICE_TYPE', 'http')
-    http_port = int(os.getenv('EXPORTER_HTTP_PORT', 9351))
-    # Another option for service_type - 'oneshot'. Useful in cases when you need to run command
-    # just one time and generate metrics file (for Node exporter textfile collector)
-    unit = os.getenv('EXPORTER_UNIT_NAME', 'wal-g')
-    metrics_file = os.getenv('EXPORTER_METRICS_FILE', f"/prometheus/{unit}.prom")
+    wal_g_scrape_interval = int(config('WAL_G_SCRAPE_INTERVAL', default=60))
+    http_port = int(config('EXPORTER_HTTP_PORT', default=9351))
+    exporter_ops_mode = config('EXPORTER_OPS_MODE', default='http')
+    unit = config('EXPORTER_UNIT_NAME', default='wal-g')
+    metrics_file = config('EXPORTER_METRICS_FILE', default=f"/prometheus/walg-{unit}.prom")
 
     # Postgres config dict
     db_connection_config = {
-        'host': pg_host,
-        'port': pg_port,
-        'user': pg_user,
-        'password': pg_password,
-        'dbname': pg_database,
-        'sslmode': pg_ssl_mode}
+        'host': config('PGHOST', default='localhost'),
+        'port': config('PGPORT', default=5432),
+        'user': config('PGUSER', default='postgres'),
+        'password': config('POSTGRES_PASSWORD'),
+        'dbname': config('POSTGRES_DB', default='postgres'),
+        'sslmode': config('PGSSLMODE', default='allow')}
 
     log.info("Starting exporter...")
     exporter = Exporter(db_connection_config, unit)
-    if service_type == 'http':
+    if exporter_ops_mode == 'http':
         # Start up the server to expose the metrics.
         http_server = exporter.start_http(http_port)
         log.info(f"Webserver started on port {http_port}")
@@ -373,7 +384,7 @@ if __name__ == '__main__':
             exporter.update_metrics()
             # To recognize a later failover, we set first_start = False now
             exporter.first_start = False
-            if service_type == 'oneshot':
+            if exporter_ops_mode == 'oneshot':
                 log.info("\"Oneshot\" type of run")
                 # write metrics to file and exit
                 exporter.write_metrics_to_file(metrics_file)

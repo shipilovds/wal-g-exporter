@@ -1,19 +1,23 @@
-ARG BASE_DIST
+ARG DEBIAN_VERSION
 
 ##############################################################################
 #=======================| Wal-g exporter Builder Image |=====================#
 ##############################################################################
-FROM python:$BASE_DIST AS exporter-builder
+FROM python:3.11-$DEBIAN_VERSION AS exporter-builder
 ARG DEBIAN_FRONTEND=noninteractive
 COPY . /exporter
 WORKDIR /exporter
+RUN apt update 
+RUN apt install -y \
+    binutils \
+    libpq-dev
 RUN pip3 install -r requirements.txt
 RUN pyinstaller --name wal-g-exporter --onefile src/exporter.py
 
 ##############################################################################
 #===========================| Wal-g Builder Image |==========================#
 ##############################################################################
-FROM golang:$BASE_DIST AS walg-builder
+FROM golang:$DEBIAN_VERSION AS walg-builder
 ARG DEBIAN_FRONTEND=noninteractive
 RUN apt update 
 RUN apt install -y \
@@ -35,17 +39,17 @@ RUN make pg_install
 ##############################################################################
 #==============================| Final Image |===============================#
 ##############################################################################
-FROM debian:$BASE_DIST as final
+FROM debian:$DEBIAN_VERSION AS final
 ENTRYPOINT ["/usr/bin/wal-g-exporter"]
 COPY --chmod=755 --from=walg-builder /wal-g /usr/bin/
 COPY --chmod=755 --from=exporter-builder /exporter/dist/wal-g-exporter /usr/bin/
-COPY Dockerfile /
+COPY Dockerfile.debian /Dockerfile
 COPY README.md /
 
 ##############################################################################
 #===========================| Deb Builder Image |============================#
 ##############################################################################
-FROM ghcr.io/shipilovds/deb-builder as deb
+FROM ghcr.io/shipilovds/deb-builder AS deb
 WORKDIR /build
 COPY --chmod=755 --from=walg-builder /wal-g deb/wal-g/
 COPY --chmod=755 --from=exporter-builder /exporter/dist/wal-g-exporter deb/wal-g-exporter/
@@ -53,9 +57,9 @@ COPY deb deb
 ARG WALG_RELEASE
 ARG WALG_EXPORTER_RELEASE
 WORKDIR /build/deb/wal-g
-RUN sed -i -e "s|^Version:.*|Version: $WALG_RELEASE|g" -e "s|^Version: v|Version: |g" debian/control
+RUN sed -i -e "s|CHANGE_ME|$WALG_RELEASE|g" -e "s|(v|(|g" debian/changelog
 RUN dpkg-buildpackage -b
 WORKDIR /build/deb/wal-g-exporter
-RUN sed -i "s|^Version:.*|Version: $WALG_EXPORTER_RELEASE|g" debian/control
+RUN sed -i -e "s|CHANGE_ME|$WALG_EXPORTER_RELEASE|g" -e "s|(v|(|g" debian/changelog
 RUN dpkg-buildpackage -b
 WORKDIR /build/deb

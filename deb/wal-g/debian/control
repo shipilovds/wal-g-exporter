@@ -7,4 +7,3 @@ Build-Depends: debhelper (>= 12)
 Package: wal-g
 Architecture: amd64
 Description: WAL-G is an archival restoration tool for PostgreSQL, MySQL/MariaDB, and MS SQL Server (beta for MongoDB and Redis).
-Version: REPLACE_ME

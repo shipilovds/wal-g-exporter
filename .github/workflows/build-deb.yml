@@ -1,0 +1,61 @@
+name: Build and upload wal-g-exporter deb
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write  # Required for managing releases
+  id-token: write  # Required for OIDC authentication
+
+jobs:
+  build-deb:
+    name: Build DEB Package
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build DEB Package
+        run: make deb
+        env:
+          BASE_DIST: debian
+          DOCKER_USER: ${{ github.actor }}
+          DOCKER_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload DEB Package as Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: deb-package
+          path: '*.deb'
+
+  release:
+    name: Create GitHub Release
+    needs:
+      - build-deb
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+
+    steps:
+      - name: Download DEB Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: deb-packages
+          path: './'
+
+      - name: Create Release and Upload Assets
+        id: create_release
+        uses: ncipollo/release-action@v1
+        with:
+          artifacts: '*.deb'
+          token: ${{ secrets.GITHUB_TOKEN }}
+          tag: ${{ github.ref_name }}
+          name: Release ${{ github.ref_name }}

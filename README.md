@@ -26,19 +26,19 @@ to serve your exporter metrics.
 
 The following environment variables can be used to configure wal-g-exporter.
 
-| Variable Name         | Default Value          | Description                                                        |
-|-----------------------|------------------------|--------------------------------------------------------------------|
-| PGHOST                | localhost              | PostgreSQL host (set to '/var/run/postgresql/' to use unix socket) |
-| PGPORT                | 5432                   | PostgreSQL port                                                    |
-| PGUSER                | postgres               | PostgreSQL user                                                    |
-| POSTGRES_DB           | postgres               | PostgreSQL database name                                           |
-| POSTGRES_PASSWORD     |                        | PostgreSQL password (no default, must be set in env)               |
-| PGSSLMODE             | allow                  | PostgreSQL SSL mode                                                |
-| WAL_G_SCRAPE_INTERVAL | 60                     | Interval for scraping WAL-G metrics (for 'http' mode).             |
-| EXPORTER_OPS_MODE     | http                   | Operation mode for the exporter ('http' or 'oneshot').             |
-| EXPORTER_HTTP_PORT    | 9351                   | Port for HTTP service.                                             |
-| EXPORTER_UNIT_NAME    | wal-g                  | Unit name for the exporter. Becomes a label on every metric.       |
-| EXPORTER_METRICS_FILE | /prometheus/wal-g.prom | Path to the metrics file for Node exporter textfile collector.     |
+| Variable Name         | Default Value                                | Description                                                        |
+|-----------------------|----------------------------------------------|--------------------------------------------------------------------|
+| PGHOST                | localhost                                    | PostgreSQL host (set to '/var/run/postgresql/' to use unix socket) |
+| PGPORT                | 5432                                         | PostgreSQL port                                                    |
+| PGUSER                | postgres                                     | PostgreSQL user                                                    |
+| POSTGRES_DB           | postgres                                     | PostgreSQL database name                                           |
+| POSTGRES_PASSWORD     |                                              | PostgreSQL password (no default, must be set in env)               |
+| PGSSLMODE             | allow                                        | PostgreSQL SSL mode                                                |
+| WAL_G_SCRAPE_INTERVAL | 60                                           | Interval for scraping WAL-G metrics (for 'http' mode).             |
+| EXPORTER_OPS_MODE     | http                                         | Operation mode for the exporter ('http' or 'oneshot').             |
+| EXPORTER_HTTP_PORT    | 9351                                         | Port for HTTP service.                                             |
+| EXPORTER_UNIT_NAME    | wal-g                                        | Unit name for the exporter. Becomes a label on every metric.       |
+| EXPORTER_METRICS_FILE | /prometheus/walg-`{EXPORTER_UNIT_NAME}`.prom | Path to the metrics file for Node exporter textfile collector.     |
 
 ## Metrics
 

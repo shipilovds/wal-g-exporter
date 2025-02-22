@@ -1,0 +1,44 @@
+ARG ALPINE_VERSION
+
+##############################################################################
+#=======================| Wal-g exporter Builder Image |=====================#
+##############################################################################
+FROM python:3.11-alpine$ALPINE_VERSION AS exporter-builder
+COPY . /exporter
+WORKDIR /exporter
+RUN apk add --no-cache \
+    binutils \
+    libpq-dev
+RUN pip3 install -r requirements.txt
+RUN pyinstaller --name wal-g-exporter --onefile src/exporter.py
+
+##############################################################################
+#===========================| Wal-g Builder Image |==========================#
+##############################################################################
+FROM golang:alpine$ALPINE_VERSION AS walg-builder
+RUN apk add --no-cache \
+    ca-certificates \
+    cmake \
+    curl \
+    git \
+    gzip \
+    brotli-dev \
+    libsodium-dev \
+    make \
+    postgresql-dev 
+ARG WALG_RELEASE
+RUN git clone --depth 1 --branch $WALG_RELEASE https://github.com/wal-g/wal-g.git 
+WORKDIR /go/wal-g
+RUN go get ./...
+RUN make deps
+RUN make pg_install
+
+##############################################################################
+#==============================| Final Image |===============================#
+##############################################################################
+FROM alpine:$ALPINE_VERSION AS final
+ENTRYPOINT ["/usr/bin/wal-g-exporter"]
+COPY --chmod=755 --from=walg-builder /wal-g /usr/bin/
+COPY --chmod=755 --from=exporter-builder /exporter/dist/wal-g-exporter /usr/bin/
+COPY Dockerfile.alpine /Dockerfile
+COPY README.md /

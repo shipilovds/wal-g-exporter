@@ -1,12 +1,14 @@
-version: '2'
 services:
   wal-g-exporter:
     build:
       context: .
       target: final
+      dockerfile: Dockerfile.${BASE_DIST:-alpine}
       args:
-        BASE_DIST: ${BASE_DIST:-bookworm}
-        WALG_RELEASE: ${WALG_RELEASE:-v2.0.1}
+        BASE_DIST: ${BASE_DIST:-alpine}
+        ALPINE_VERSION: ${ALPINE_VERSION:-3.21}
+        DEBIAN_VERSION: ${DEBIAN_VERSION:-bookworm}
+        WALG_RELEASE: ${WALG_RELEASE:-v3.0.5}
       labels:
         - "org.opencontainers.image.source=https://github.com/shipilovds/wal-g-exporter"
         - "org.opencontainers.image.description=Container with `wal-g` cli and WAL-G Prometheus Exporter"
@@ -14,19 +16,21 @@ services:
         - "org.opencontainers.image.url=https://github.com/shipilovds/wal-g-exporter"
         - "org.opencontainers.image.documentation=https://github.com/shipilovds/wal-g-exporter/blob/master/README.md"
         - "org.opencontainers.image.revision=${REVISION:-1.0}"
-    image: ${WALG_EXPORTER_IMAGE:-wal-g-exporter}
+    image: ${DOCKER_IMAGE:-wal-g-exporter}
   deb-builder:
     build:
       context: deb
       args:
-        BASE_DIST: bookworm
+        DEBIAN_VERSION: ${DEBIAN_VERSION:-bookworm}
     image: ghcr.io/shipilovds/deb-builder
   deb:
     build:
       context: .
       target: deb
+      dockerfile: Dockerfile.${BASE_DIST}
       args:
-        BASE_DIST: ${BASE_DIST:-bookworm}
-        WALG_RELEASE: ${WALG_RELEASE:-v2.0.1}
-        WALG_EXPORTER_RELEASE: ${WALG_EXPORTER_RELEASE:-1.0.0}
+        BASE_DIST: ${BASE_DIST:-debian}
+        DEBIAN_VERSION: ${DEBIAN_VERSION:-bookworm}
+        WALG_RELEASE: ${WALG_RELEASE:-v3.0.5}
+        WALG_EXPORTER_RELEASE: ${WALG_EXPORTER_RELEASE:-1.2.0}
     image: deb
